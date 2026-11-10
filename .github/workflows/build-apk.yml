@@ -1,0 +1,103 @@
+name: Build & Release APK
+
+# Every push to main builds a signed APK and publishes it as a GitHub Release.
+# The app checks the latest release and shows "Update available" in Settings.
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+env:
+  APP_BASE: '1.0' # change to 1.1 / 2.0 when you want a bigger version bump
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Compute version
+        run: |
+          echo "VERSION=${APP_BASE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        env:
+          VITE_APP_VERSION: ${{ env.VERSION }}
+          VITE_GITHUB_REPO: ${{ github.repository }}
+        run: npm run build
+
+      - name: Create Android project
+        run: |
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#10b981' --iconBackgroundColorDark '#10b981'
+          npx cap sync android
+
+      - name: Set Android version
+        run: |
+          sed -i "s/versionCode 1/versionCode ${VERSION_CODE}/; s/versionName \"1.0\"/versionName \"${VERSION}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+
+      - name: Build release APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Align & sign APK
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          UNSIGNED=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n1)
+          echo "Unsigned: $UNSIGNED"
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" aligned.apk
+          "$BT/apksigner" sign \
+            --ks signing/mess-release.keystore \
+            --ks-key-alias mess \
+            --ks-pass pass:messmanager123 \
+            --key-pass pass:messmanager123 \
+            --out "MessManager-v${VERSION}.apk" aligned.apk
+          "$BT/apksigner" verify --verbose "MessManager-v${VERSION}.apk"
+
+      - name: Release notes
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if [ -n "$COMMIT_MSG" ]; then printf '%s\n' "$COMMIT_MSG" > notes.md; else echo "Manual build" > notes.md; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MessManager-v${{ env.VERSION }}
+          path: MessManager-v${{ env.VERSION }}.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Mess Manager v${{ env.VERSION }}
+          body_path: notes.md
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: MessManager-v${{ env.VERSION }}.apk

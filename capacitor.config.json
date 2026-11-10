@@ -1,0 +1,9 @@
+{
+  "appId": "com.bachelor.messmanager",
+  "appName": "Mess Manager",
+  "webDir": "dist",
+  "backgroundColor": "#0b1220",
+  "android": {
+    "allowMixedContent": false
+  }
+}
