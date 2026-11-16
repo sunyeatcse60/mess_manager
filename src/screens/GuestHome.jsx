@@ -157,10 +157,6 @@ export default function GuestHome() {
       <Field label={t('password')} hint={t('passPolicy')}>
         <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="new-password" />
       </Field>
-      <label className="check">
-        <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
-        <span>{t('termsAgree')}</span>
-      </label>
     </>
   );
 
@@ -181,6 +177,10 @@ export default function GuestHome() {
           <Field label={t('managerPassOpt')} hint={t('managerPassOptHint')}>
             <input type="password" value={mgrPass} onChange={(e) => setMgrPass(e.target.value)} autoComplete="new-password" />
           </Field>
+          <label className="check">
+            <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+            <span>{t('termsAgree')}</span>
+          </label>
           <Feedback />
           <button className="btn btn-primary full" disabled={busy || !email || !pass || !username || !messName.trim() || !memPass || !termsAccepted} onClick={doCreate}>
             {busy ? t('loading') : t('createBtn')}
@@ -255,6 +255,7 @@ export default function GuestHome() {
           <button className="btn btn-primary full" disabled={busy || !(email || username) || !pass} onClick={doLogin}>
             {busy ? t('loading') : t('btnLogin')}
           </button>
+          <button className="link" onClick={() => go('create')}>Create a new account</button>
         </div>
 
         <Modal open={otpOpen} title="OTP verification" onClose={() => setOtpOpen(false)}>
