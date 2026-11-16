@@ -8,6 +8,20 @@ const ok = ({ data, error }) => {
 };
 export const errCode = (e) => String(e?.message || e || '');
 
+export const validatePassword = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(String(password || ''));
+
+export async function resolveLoginEmail(identifier) {
+  const cleaned = String(identifier || '').trim();
+  if (!cleaned) throw new Error('EMAIL_OR_USERNAME_REQUIRED');
+
+  if (cleaned.includes('@')) return cleaned.toLowerCase();
+
+  const { data, error } = await supabase.rpc('lookup_email_by_username', { p_username: cleaned.toLowerCase() });
+  if (error) throw error;
+  if (!data) throw new Error('USER_NOT_FOUND');
+  return String(data).trim().toLowerCase();
+}
+
 export const uuid = () =>
   globalThis.crypto?.randomUUID
     ? globalThis.crypto.randomUUID()
@@ -18,26 +32,29 @@ export const uuid = () =>
 
 /* ---------------- অ্যাকাউন্ট ---------------- */
 export async function signUp({ email, password, fullName, username }) {
-  const free = ok(await supabase.rpc('username_available', { p: username }));
+  const user = String(username || '').trim().toLowerCase();
+  if (!validatePassword(password)) throw new Error('E_PASS');
+  const free = ok(await supabase.rpc('username_available', { p: user }));
   if (!free) throw new Error('USERNAME_TAKEN');
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, username } },
+    options: { data: { full_name: fullName, username: user } },
   });
   if (error) throw error;
   return { needsConfirm: !data.session };
 }
 export const signIn = async (email, password) => ok(await supabase.auth.signInWithPassword({ email, password }));
-export async function sendLoginOtp(email) {
-  const value = String(email || '').trim().toLowerCase();
-  if (!value) throw new Error('Email is required');
-  return ok(await supabase.auth.signInWithOtp({ email: value }));
+export async function requestOtpLogin(identifier, password) {
+  const value = String(identifier || '').trim();
+  const email = await resolveLoginEmail(value);
+  if (!validatePassword(password)) throw new Error('E_PASS');
+  return ok(await supabase.auth.signInWithOtp({ email }));
 }
-export async function verifyLoginOtp(email, token) {
-  const value = String(email || '').trim().toLowerCase();
-  if (!value || !token) throw new Error('OTP is required');
-  return ok(await supabase.auth.verifyOtp({ email: value, token, type: 'email' }));
+export async function verifyOtpLogin(identifier, token) {
+  const email = await resolveLoginEmail(identifier);
+  if (!String(token || '').trim()) throw new Error('OTP_REQUIRED');
+  return ok(await supabase.auth.verifyOtp({ email, token, type: 'email' }));
 }
 export const signOut = () => supabase.auth.signOut();
 export const myProfile = async (uid) => ok(await supabase.from('profiles').select('*').eq('id', uid).single());
@@ -213,7 +230,8 @@ export function explain(e, t) {
   const m = errCode(e);
   const map = [
     [/Invalid login/i, 'errLogin'], [/already registered/i, 'errEmailTaken'], [/Email not confirmed/i, 'confirmMail'],
-    [/USERNAME_TAKEN/, 'errUsernameTaken'], [/E_USERNAME/, 'errUsernameBad'], [/E_PASS/, 'errPassShort'], [/E_NAME/, 'errName'],
+    [/USERNAME_TAKEN/, 'errUsernameTaken'], [/E_USERNAME/, 'errUsernameBad'], [/E_PASS/, 'errPassShort'], [/EMAIL_OR_USERNAME_REQUIRED/, 'errUserRequired'],
+    [/USER_NOT_FOUND/, 'errUserNotFound'], [/OTP_REQUIRED/, 'otpRequired'], [/INVALID_OTP|otp/i, 'otpInvalid'], [/E_NAME/, 'errName'],
     [/NOT_FOUND/, 'errNotFound'], [/WRONG_PASS/, 'errWrongPass'], [/LOCKED/, 'errLocked'], [/WEAK_PASS/, 'errWeakPass'],
     [/SAME_PASS/, 'errSamePass'], [/BAD_NAME/, 'errBadName'], [/FOUNDER_CANNOT_LEAVE/, 'errFounderLeave'],
     [/rate limit/i, 'errRate'], [/Failed to fetch|NetworkError|network/i, 'errNet'],

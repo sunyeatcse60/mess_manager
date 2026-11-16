@@ -3,7 +3,7 @@ import { Users, UserPlus, LogIn, ChevronLeft, Zap, ShieldCheck, Smartphone, Copy
 import appLogo from '../../assets/icon-only.png';
 import { useApp } from '../store.jsx';
 import * as C from '../cloud.js';
-import { Field, useToast } from '../ui.jsx';
+import { Field, Modal, useToast } from '../ui.jsx';
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 const fail = (msg) => window.dispatchEvent(new CustomEvent('app-error', { detail: msg }));
@@ -22,6 +22,9 @@ export default function GuestHome() {
   const [pass, setPass] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [pendingLoginEmail, setPendingLoginEmail] = useState('');
   const [messName, setMessName] = useState('');
   const [memPass, setMemPass] = useState('');
   const [mgrPass, setMgrPass] = useState('');
@@ -37,7 +40,7 @@ export default function GuestHome() {
 
   const checkAccount = () => {
     if (!USERNAME_RE.test(username.trim().toLowerCase())) throw new Error('E_USERNAME');
-    if (pass.length < 6) throw new Error('E_PASS');
+    if (!C.validatePassword(pass)) throw new Error('E_PASS');
   };
 
   const signUpNow = async () => {
@@ -62,6 +65,7 @@ export default function GuestHome() {
   const doCreate = () =>
     run(async () => {
       checkAccount();
+      if (!termsAccepted) throw new Error('TERMS_REQUIRED');
       if (messName.trim().length < 2) throw new Error('BAD_NAME');
       const mgr = mgrPass.trim();
       if (memPass.length < 4 || (mgr && mgr.length < 4)) throw new Error('WEAK_PASS');
@@ -86,6 +90,7 @@ export default function GuestHome() {
         await C.signIn(email.trim().toLowerCase(), pass);
       } else {
         checkAccount();
+        if (!termsAccepted) throw new Error('TERMS_REQUIRED');
         const r = await signUpNow();
         if (r.needsConfirm) {
           setInfo(t('confirmMail'));
@@ -95,7 +100,6 @@ export default function GuestHome() {
       }
       const r = await C.joinMess(code, joinPass);
       if (!r.ok) {
-        // অ্যাকাউন্ট খোলা বা লগইন হয়ে গেছে; এখন "মেস গেট" আসবে, সেখানে আবার চেষ্টা করা যাবে
         fail(C.explain(new Error(r.error), t));
         return;
       }
@@ -105,20 +109,28 @@ export default function GuestHome() {
 
   const doLogin = () =>
     run(async () => {
-      await C.signIn(email.trim().toLowerCase(), pass);
-    });
-
-  const doSendOtp = () =>
-    run(async () => {
-      await C.sendLoginOtp(email.trim().toLowerCase());
+      const loginValue = (email || username).trim();
+      if (!loginValue) throw new Error('EMAIL_OR_USERNAME_REQUIRED');
+      if (!C.validatePassword(pass)) throw new Error('E_PASS');
+      const resolvedEmail = await C.resolveLoginEmail(loginValue);
+      await C.requestOtpLogin(resolvedEmail, pass);
+      setPendingLoginEmail(resolvedEmail);
       setOtpSent(true);
-      setInfo('OTP sent to your email. Enter the 6-digit code below.');
+      setOtpOpen(true);
+      setInfo(t('otpSent'));
     });
 
   const doVerifyOtp = () =>
     run(async () => {
-      await C.verifyLoginOtp(email.trim().toLowerCase(), otpCode.trim());
+      const loginValue = pendingLoginEmail || (email || username).trim();
+      if (!loginValue) throw new Error('EMAIL_OR_USERNAME_REQUIRED');
+      if (!otpCode.trim()) throw new Error('OTP_REQUIRED');
+      await C.verifyOtpLogin(loginValue, otpCode.trim());
       setOtpSent(false);
+      setOtpOpen(false);
+      setOtpCode('');
+      setPendingLoginEmail('');
+      toast(t('loginSuccess'));
     });
 
   const Back = () => (
@@ -142,9 +154,13 @@ export default function GuestHome() {
       <Field label={t('email')}>
         <input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
       </Field>
-      <Field label={t('password')}>
+      <Field label={t('password')} hint={t('passPolicy')}>
         <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="new-password" />
       </Field>
+      <label className="check">
+        <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+        <span>{t('termsAgree')}</span>
+      </label>
     </>
   );
 
@@ -166,7 +182,7 @@ export default function GuestHome() {
             <input type="password" value={mgrPass} onChange={(e) => setMgrPass(e.target.value)} autoComplete="new-password" />
           </Field>
           <Feedback />
-          <button className="btn btn-primary full" disabled={busy || !email || !pass || !username || !messName.trim() || !memPass} onClick={doCreate}>
+          <button className="btn btn-primary full" disabled={busy || !email || !pass || !username || !messName.trim() || !memPass || !termsAccepted} onClick={doCreate}>
             {busy ? t('loading') : t('createBtn')}
           </button>
           <button className="link" onClick={() => go('login')}>{t('ctaLogin')}</button>
@@ -192,8 +208,14 @@ export default function GuestHome() {
           <Field label={t('joinPass')} hint={t('joinPassHint')}>
             <input type="password" value={joinPass} onChange={(e) => setJoinPass(e.target.value)} />
           </Field>
+          {!hasAccount && (
+            <label className="check">
+              <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+              <span>{t('termsAgree')}</span>
+            </label>
+          )}
           <Feedback />
-          <button className="btn btn-primary full" disabled={busy || !email || !pass || !code.trim() || !joinPass || (!hasAccount && !username)} onClick={doJoin}>
+          <button className="btn btn-primary full" disabled={busy || !email || !pass || !code.trim() || !joinPass || (!hasAccount && (!username || !termsAccepted))} onClick={doJoin}>
             {busy ? t('loading') : t('joinBtn')}
           </button>
         </div>
@@ -207,36 +229,43 @@ export default function GuestHome() {
         <Back />
         <h2 className="title">{t('loginFormTitle')}</h2>
         <div className="stack-sm">
-          <Field label={t('email')}>
-            <input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          <Field label={t('emailOrUsername')}>
+            <input
+              type="text"
+              value={email || username}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.includes('@')) {
+                  setEmail(value);
+                  setUsername('');
+                } else {
+                  setEmail('');
+                  setUsername(value);
+                }
+              }}
+              autoComplete="username"
+            />
           </Field>
-          <Field label={t('password')}>
+          <Field label={t('password')} hint={t('passPolicy')}>
             <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="current-password" />
           </Field>
 
-          {otpSent && (
-            <Field label="OTP code">
-              <input type="text" inputMode="numeric" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" />
-            </Field>
-          )}
-
           <Feedback />
 
-          {!otpSent ? (
-            <>
-              <button className="btn btn-primary full" disabled={busy || !email || !pass} onClick={doLogin}>
-                {busy ? t('loading') : t('btnLogin')}
-              </button>
-              <button className="btn btn-ghost full" disabled={busy || !email} onClick={doSendOtp}>
-                {busy ? t('loading') : 'Send OTP to email'}
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-primary full" disabled={busy || !email || otpCode.length !== 6} onClick={doVerifyOtp}>
-              {busy ? t('loading') : 'Verify OTP'}
-            </button>
-          )}
+          <button className="btn btn-primary full" disabled={busy || !(email || username) || !pass} onClick={doLogin}>
+            {busy ? t('loading') : t('btnLogin')}
+          </button>
         </div>
+
+        <Modal open={otpOpen} title="OTP verification" onClose={() => setOtpOpen(false)}>
+          <p className="muted small">{info || 'A 6-digit OTP has been sent to your email.'}</p>
+          <Field label="OTP code">
+            <input type="text" inputMode="numeric" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" />
+          </Field>
+          <button className="btn btn-primary full" disabled={busy || otpCode.length !== 6} onClick={doVerifyOtp}>
+            {busy ? t('loading') : 'Verify OTP'}
+          </button>
+        </Modal>
       </div>
     );
   }
