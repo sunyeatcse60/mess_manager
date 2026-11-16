@@ -33,11 +33,18 @@ export async function checkForUpdate(repoInput) {
   const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-      headers: { Accept: 'application/vnd.github+json' },
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'mess-manager-app',
+      },
       signal: ctrl.signal,
       cache: 'no-store',
     });
     if (res.status === 404) return { status: 'norelease', repo };
+    if (res.status === 403) {
+      const retryAfter = res.headers.get('x-ratelimit-reset');
+      return { status: 'error', repo, error: retryAfter ? 'GitHub rate limit reached' : 'HTTP 403' };
+    }
     if (!res.ok) return { status: 'error', repo, error: `HTTP ${res.status}` };
     const rel = await res.json();
     const latest = clean(rel.tag_name);
