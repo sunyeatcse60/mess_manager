@@ -405,7 +405,7 @@ export default function GuestHome() {
       <div className="auth-row">
         <button className="auth-btn primary" onClick={() => go('login')}>
           <span className="auth-btn-icon"><LogIn size={18} /></span>
-          <span>Login</span>
+          <span>Log In</span>
         </button>
         <button className="auth-btn" onClick={() => go('signup')}>
           <span className="auth-btn-icon"><UserPlus size={18} /></span>

@@ -58,18 +58,12 @@ export default function App() {
     setUpdate({ checking: false, result });
   }, [data.settings.repo]);
 
-  // অ্যাপ খুললে একবার আপডেট চেক
-  useEffect(() => {
-    runCheck();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   if (stage === 'loading') return <Splash />;
   if (stage === 'error') return <Splash error retry={retryLoad} />;
   if (justCreated) return <CreatedScreen />;
   if (stage === 'gate') return <Gate />;
 
-  const hasUpdate = update.result?.status === 'available';
+  const hasUpdate = false;
   // লগইন ছাড়া শুধু হোম আর সেটিংস
   const cur = guest && screen !== 'settings' ? 'dashboard' : screen;
 
@@ -124,12 +118,6 @@ export default function App() {
           <button className="month-label" onClick={() => setSettings({ month: currentMonth() })}>{monthLabel(month, lang)}</button>
           <button className="icon-btn" onClick={() => setSettings({ month: shiftMonth(month, 1) })} aria-label="next month"><ChevronRight size={16} /></button>
         </div>
-      )}
-
-      {hasUpdate && cur !== 'settings' && (
-        <button className="update-banner" onClick={() => setScreen('settings')}>
-          🚀 {t('updateAvailable')} v{update.result.latest}
-        </button>
       )}
 
       <main className="viewport" key={cur}>{body}</main>
