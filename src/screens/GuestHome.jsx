@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, UserPlus, LogIn, ChevronLeft, Zap, ShieldCheck, Smartphone, Copy, Share2 } from 'lucide-react';
+import { Users, UserPlus, LogIn, ChevronLeft, Zap, ShieldCheck, Smartphone, Copy, Share2, Mail, Lock, ArrowRight, Check, Eye, EyeOff } from 'lucide-react';
 import appLogo from '../../assets/icon-only.png';
 import { useApp } from '../store.jsx';
 import * as C from '../cloud.js';
@@ -20,6 +20,12 @@ export default function GuestHome() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
+  const [repass, setRepass] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [showRepass, setShowRepass] = useState(false);
+  const [showJoinPass, setShowJoinPass] = useState(false);
+  const [showCreatePass, setShowCreatePass] = useState(false);
+  const [showManagerPass, setShowManagerPass] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpOpen, setOtpOpen] = useState(false);
@@ -47,6 +53,25 @@ export default function GuestHome() {
     const un = username.trim().toLowerCase();
     return C.signUp({ email: email.trim().toLowerCase(), password: pass, fullName: un, username: un });
   };
+
+  const doSignup = () =>
+    run(async () => {
+      const un = username.trim().toLowerCase();
+      if (!USERNAME_RE.test(un)) throw new Error('E_USERNAME');
+      if (!email.trim()) throw new Error('EMAIL_REQUIRED');
+      if (!C.validatePassword(pass)) throw new Error('E_PASS');
+      if (pass !== repass) throw new Error('PASS_MISMATCH');
+      if (!termsAccepted) throw new Error('TERMS_REQUIRED');
+
+      const r = await signUpNow();
+      if (r.needsConfirm) {
+        setInfo(t('confirmMail'));
+        setView('login');
+        return;
+      }
+      setInfo('Account created. Please log in to continue.');
+      setView('login');
+    });
 
   const run = async (fn) => {
     setErr('');
@@ -131,7 +156,18 @@ export default function GuestHome() {
       setOtpCode('');
       setPendingLoginEmail('');
       toast(t('loginSuccess'));
+      setView('create');
     });
+
+  const PasswordField = ({ value, onChange, placeholder, show, setShow, icon = null }) => (
+    <div className="modern-input password-wrap">
+      <span className="modern-icon">{icon || <Lock size={16} />}</span>
+      <input type={show ? 'text' : 'password'} value={value} onChange={onChange} placeholder={placeholder} autoComplete="new-password" />
+      <button type="button" className="pass-toggle" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'}>
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
 
   const Back = () => (
     <button className="form-back" onClick={() => go('home')}>
@@ -163,29 +199,38 @@ export default function GuestHome() {
   /* ---------------- ফর্ম স্ক্রিনগুলো ---------------- */
   if (view === 'create') {
     return (
-      <div className="screen">
+      <div className="screen auth-modern">
         <Back />
-        <h2 className="title">{t('createFormTitle')}</h2>
-        <div className="stack-sm">
-          {accountFields}
-          <Field label={t('messName')}>
-            <input value={messName} onChange={(e) => setMessName(e.target.value)} maxLength={60} />
-          </Field>
-          <Field label={t('memberPass')} hint={t('memberPassHint')}>
-            <input type="password" value={memPass} onChange={(e) => setMemPass(e.target.value)} autoComplete="new-password" />
-          </Field>
-          <Field label={t('managerPassOpt')} hint={t('managerPassOptHint')}>
-            <input type="password" value={mgrPass} onChange={(e) => setMgrPass(e.target.value)} autoComplete="new-password" />
-          </Field>
+        <div className="auth-head modern-head">
+          <h1>Create Mess</h1>
+          <p className="muted">Set up your mess and invite members</p>
+        </div>
+        <div className="stack-sm modern-form">
+          <label className="modern-input">
+            <span className="modern-icon"><Users size={16} /></span>
+            <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="Username" autoCapitalize="none" autoComplete="username" />
+          </label>
+          <label className="modern-input">
+            <span className="modern-icon"><Mail size={16} /></span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" autoComplete="email" />
+          </label>
+          <PasswordField value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Password" show={showPass} setShow={setShowPass} />
+          <PasswordField value={repass} onChange={(e) => setRepass(e.target.value)} placeholder="Re-enter password" show={showRepass} setShow={setShowRepass} />
+          <label className="modern-input">
+            <span className="modern-icon"><Users size={16} /></span>
+            <input value={messName} onChange={(e) => setMessName(e.target.value)} maxLength={60} placeholder="Mess name" />
+          </label>
+          <PasswordField value={memPass} onChange={(e) => setMemPass(e.target.value)} placeholder="Member password" show={showCreatePass} setShow={setShowCreatePass} />
+          <PasswordField value={mgrPass} onChange={(e) => setMgrPass(e.target.value)} placeholder="Manager password (optional)" show={showManagerPass} setShow={setShowManagerPass} />
           <label className="check">
             <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
             <span>{t('termsAgree')}</span>
           </label>
           <Feedback />
-          <button className="btn btn-primary full" disabled={busy || !email || !pass || !username || !messName.trim() || !memPass || !termsAccepted} onClick={doCreate}>
-            {busy ? t('loading') : t('createBtn')}
+          <button className="btn modern-btn" disabled={busy || !email || !pass || !username || !messName.trim() || !memPass || !termsAccepted} onClick={doCreate}>
+            {busy ? t('loading') : 'Create Mess'}
           </button>
-          <button className="link" onClick={() => go('login')}>{t('ctaLogin')}</button>
+          <button className="link muted-link" onClick={() => go('login')}>{t('ctaLogin')}</button>
         </div>
       </div>
     );
@@ -193,21 +238,35 @@ export default function GuestHome() {
 
   if (view === 'join') {
     return (
-      <div className="screen">
+      <div className="screen auth-modern">
         <Back />
-        <h2 className="title">{t('joinFormTitle')}</h2>
-        <div className="stack-sm">
+        <div className="auth-head modern-head">
+          <h1>Join Mess</h1>
+          <p className="muted">Enter your invite details to join</p>
+        </div>
+        <div className="stack-sm modern-form">
           <label className="check">
             <input type="checkbox" checked={hasAccount} onChange={(e) => setHasAccount(e.target.checked)} />
             <span>{t('haveAccount')}</span>
           </label>
-          {accountFields}
-          <Field label={t('messCode')}>
+          {!hasAccount && (
+            <>
+              <label className="modern-input">
+                <span className="modern-icon"><Users size={16} /></span>
+                <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="Username" autoCapitalize="none" autoComplete="username" />
+              </label>
+              <label className="modern-input">
+                <span className="modern-icon"><Mail size={16} /></span>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" autoComplete="email" />
+              </label>
+              <PasswordField value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Password" show={showPass} setShow={setShowPass} />
+            </>
+          )}
+          <label className="modern-input">
+            <span className="modern-icon"><Users size={16} /></span>
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="MESS-XXXXX" autoCapitalize="characters" />
-          </Field>
-          <Field label={t('joinPass')} hint={t('joinPassHint')}>
-            <input type="password" value={joinPass} onChange={(e) => setJoinPass(e.target.value)} />
-          </Field>
+          </label>
+          <PasswordField value={joinPass} onChange={(e) => setJoinPass(e.target.value)} placeholder="Mess password" show={showJoinPass} setShow={setShowJoinPass} />
           {!hasAccount && (
             <label className="check">
               <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
@@ -215,8 +274,50 @@ export default function GuestHome() {
             </label>
           )}
           <Feedback />
-          <button className="btn btn-primary full" disabled={busy || !email || !pass || !code.trim() || !joinPass || (!hasAccount && (!username || !termsAccepted))} onClick={doJoin}>
-            {busy ? t('loading') : t('joinBtn')}
+          <button className="btn modern-btn" disabled={busy || !code.trim() || !joinPass || (!hasAccount && (!email || !pass || !username || !termsAccepted))} onClick={doJoin}>
+            {busy ? t('loading') : 'Join Mess'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'signup') {
+    return (
+      <div className="screen auth-modern">
+        <Back />
+        <div className="auth-head modern-head">
+          <h1>Create account</h1>
+          <p className="muted">Start managing your mess in seconds</p>
+        </div>
+
+        <div className="stack-sm modern-form">
+          <label className="modern-input">
+            <span className="modern-icon"><Users size={16} /></span>
+            <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="Username" autoCapitalize="none" autoComplete="username" />
+          </label>
+
+          <label className="modern-input">
+            <span className="modern-icon"><Mail size={16} /></span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" autoComplete="email" />
+          </label>
+
+          <PasswordField value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Password" show={showPass} setShow={setShowPass} />
+          <PasswordField value={repass} onChange={(e) => setRepass(e.target.value)} placeholder="Re-enter password" show={showRepass} setShow={setShowRepass} />
+
+          <label className="check">
+            <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+            <span>{t('termsAgree')}</span>
+          </label>
+
+          <Feedback />
+
+          <button className="btn modern-btn" disabled={busy || !username || !email || !pass || !repass || !termsAccepted} onClick={doSignup}>
+            <ArrowRight size={18} /> {busy ? t('loading') : 'Sign up'}
+          </button>
+
+          <button className="link muted-link" onClick={() => go('login')}>
+            Already have an account? Login
           </button>
         </div>
       </div>
@@ -225,13 +326,19 @@ export default function GuestHome() {
 
   if (view === 'login') {
     return (
-      <div className="screen">
+      <div className="screen auth-modern">
         <Back />
-        <h2 className="title">{t('loginFormTitle')}</h2>
-        <div className="stack-sm">
-          <Field label={t('emailOrUsername')}>
+        <div className="auth-head modern-head">
+          <h1>Welcome Back!</h1>
+          <p className="muted">Login to continue</p>
+        </div>
+
+        <div className="stack-sm modern-form">
+          <label className="modern-input">
+            <span className="modern-icon"><Mail size={16} /></span>
             <input
               type="text"
+              placeholder={t('emailOrUsername')}
               value={email || username}
               onChange={(e) => {
                 const value = e.target.value;
@@ -245,17 +352,30 @@ export default function GuestHome() {
               }}
               autoComplete="username"
             />
-          </Field>
-          <Field label={t('password')} hint={t('passPolicy')}>
-            <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="current-password" />
-          </Field>
+          </label>
+
+          <label className="modern-input">
+            <span className="modern-icon"><Lock size={16} /></span>
+            <input type="password" placeholder={t('password')} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="current-password" />
+          </label>
+
+          <div className="modern-meta">
+            <label className="remember-me">
+              <input type="checkbox" checked />
+              <span>Remember Me</span>
+            </label>
+            <button className="link muted-link" onClick={() => go('signup')}>Forgot Password?</button>
+          </div>
 
           <Feedback />
 
-          <button className="btn btn-primary full" disabled={busy || !(email || username) || !pass} onClick={doLogin}>
-            {busy ? t('loading') : t('btnLogin')}
+          <button className="btn modern-btn" disabled={busy || !(email || username) || !pass} onClick={doLogin}>
+            <ArrowRight size={18} /> {busy ? t('loading') : 'Login'}
           </button>
-          <button className="link" onClick={() => go('create')}>Create a new account</button>
+
+          <button className="link muted-link" onClick={() => go('signup')}>
+            Need an account? Sign up
+          </button>
         </div>
 
         <Modal open={otpOpen} title="OTP verification" onClose={() => setOtpOpen(false)}>
@@ -273,7 +393,7 @@ export default function GuestHome() {
 
   /* ---------------- হোম ---------------- */
   return (
-    <div className="screen">
+    <div className="screen auth-landing">
       <div className="hero" style={{ textAlign: 'center' }}>
         <div className="logo big-logo" style={{ margin: '0 auto 10px' }}>
           <img src={appLogo} alt="Mess Manager logo" className="brand-logo" width={30} height={30} />
@@ -282,25 +402,22 @@ export default function GuestHome() {
         <p className="muted" style={{ marginTop: 4 }}>{t('authSub')}</p>
       </div>
 
-      <button className="cta primary" onClick={() => go('create')}>
-        <span className="cta-ic"><Users size={20} /></span>
-        <span>
-          <b>{t('ctaCreate')}</b>
-          <span className="sub">{t('ctaCreateSub')}</span>
-        </span>
-      </button>
+      <div className="auth-row">
+        <button className="auth-btn primary" onClick={() => go('login')}>
+          <span className="auth-btn-icon"><LogIn size={18} /></span>
+          <span>Login</span>
+        </button>
+        <button className="auth-btn" onClick={() => go('signup')}>
+          <span className="auth-btn-icon"><UserPlus size={18} /></span>
+          <span>Sign Up</span>
+        </button>
+      </div>
+
       <button className="cta" onClick={() => go('join')}>
-        <span className="cta-ic"><UserPlus size={20} /></span>
+        <span className="cta-ic"><Users size={20} /></span>
         <span>
           <b>{t('ctaJoin')}</b>
           <span className="sub">{t('ctaJoinSub')}</span>
-        </span>
-      </button>
-      <button className="cta" onClick={() => go('login')}>
-        <span className="cta-ic"><LogIn size={20} /></span>
-        <span>
-          <b>{t('ctaLogin')}</b>
-          <span className="sub">{t('ctaLoginSub')}</span>
         </span>
       </button>
 

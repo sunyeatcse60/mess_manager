@@ -19,10 +19,6 @@ const NAV = [
   { id: 'bua', icon: HandCoins, label: 'navBua' },
   { id: 'settle', icon: Receipt, label: 'navSettle' },
 ];
-const GUEST_NAV = [
-  { id: 'dashboard', icon: Home, label: 'navHome' },
-  { id: 'settings', icon: Gear, label: 'navSettings' },
-];
 
 function BrandLogo({ large = false, size = 17 }) {
   return (
@@ -92,7 +88,7 @@ export default function App() {
   }[cur];
 
   const loggedIn = cloudOn && !guest;
-  const nav = guest ? GUEST_NAV : NAV;
+  const nav = NAV;
 
   return (
     <div className="app">
@@ -138,14 +134,16 @@ export default function App() {
 
       <main className="viewport" key={cur}>{body}</main>
 
-      <nav className={`bottom-nav ${guest ? 'two' : ''}`}>
-        {nav.map(({ id, icon: Icon, label }) => (
-          <button key={id} className={cur === id ? 'on' : ''} onClick={() => setScreen(id)}>
-            <Icon size={19} />
-            <span>{t(label)}</span>
-          </button>
-        ))}
-      </nav>
+      {!guest && (
+        <nav className="bottom-nav">
+          {nav.map(({ id, icon: Icon, label }) => (
+            <button key={id} className={cur === id ? 'on' : ''} onClick={() => setScreen(id)}>
+              <Icon size={19} />
+              <span>{t(label)}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

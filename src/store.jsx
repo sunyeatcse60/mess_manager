@@ -38,7 +38,7 @@ export const shiftDay = (date, delta) => {
 
 const defaultSettings = () => ({
   lang: 'bn',
-  theme: 'emerald',
+  theme: 'indigo',
   mode: 'dark',
   meId: 'm1',
   month: currentMonth(),

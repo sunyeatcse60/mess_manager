@@ -4,7 +4,7 @@ import {
   Moon, Sun, LogOut, Share2, KeyRound, Repeat, Plus, DoorOpen, Pencil, Home,
 } from 'lucide-react';
 import { useApp, THEMES, num } from '../store.jsx';
-import { APP_VERSION, DEFAULT_REPO, openExternal, fetchDownloadCount, normalizeRepo } from '../update.js';
+import { APP_VERSION, DEFAULT_REPO, openExternal, fetchDownloadCount } from '../update.js';
 import { DEVELOPER, cloudReady } from '../config.js';
 import * as C from '../cloud.js';
 import { Avatar, Field, Modal, ManagerBadge, SectionHead, useToast } from '../ui.jsx';
@@ -392,21 +392,6 @@ export default function Settings({ update, runCheck, goHome }) {
       {guest && <GuestCard goHome={goHome} />}
       {cloudOn && !guest && <AccountCard />}
       {cloudOn && !guest && <MessCard />}
-
-      <div className="card stack-sm">
-        <div className="row between center">
-          <b>{t('repoLabel')}</b>
-          {DEFAULT_REPO && (
-            <button className="link muted-link" onClick={() => setSettings({ repo: DEFAULT_REPO })}>Default</button>
-          )}
-        </div>
-        <input
-          value={settings.repo || ''}
-          placeholder={DEFAULT_REPO || 'owner/repo'}
-          onChange={(e) => setSettings({ repo: normalizeRepo(e.target.value) })}
-        />
-        {!settings.repo && DEFAULT_REPO && <p className="muted small">Using default repo: {DEFAULT_REPO}</p>}
-      </div>
 
       <UpdateCard update={update} runCheck={runCheck} />
       <Community repo={settings.repo || DEFAULT_REPO} />
