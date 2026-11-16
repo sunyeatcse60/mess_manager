@@ -14,6 +14,11 @@ export function ToastProvider({ children }) {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(null), 2200);
   }, []);
+  useEffect(() => {
+    const h = (e) => show(e.detail, 'err');
+    window.addEventListener('app-error', h);
+    return () => window.removeEventListener('app-error', h);
+  }, [show]);
   return (
     <ToastCtx.Provider value={show}>
       {children}
@@ -60,6 +65,9 @@ export const Field = ({ label, hint, children }) => (
 );
 
 export function Avatar({ member, size = 36 }) {
+  if (member?.avatarUrl) {
+    return <img className="avatar-img" src={member.avatarUrl} alt="" style={{ width: size, height: size }} />;
+  }
   return (
     <div
       className="avatar"

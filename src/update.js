@@ -64,3 +64,18 @@ export async function openExternal(url) {
   if (Capacitor.isNativePlatform()) await Browser.open({ url });
   else window.open(url, '_blank', 'noopener');
 }
+
+// সব রিলিজের APK ডাউনলোড সংখ্যার যোগফল (GitHub-এর ফ্রি পাবলিক API)
+export async function fetchDownloadCount(repoInput) {
+  const repo = normalizeRepo(repoInput || DEFAULT_REPO);
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return null;
+  const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`, {
+    headers: { Accept: 'application/vnd.github+json' },
+  });
+  if (!res.ok) return null;
+  const list = await res.json();
+  return list.reduce(
+    (sum, r) => sum + (r.assets || []).filter((a) => /\.apk$/i.test(a.name)).reduce((s, a) => s + (a.download_count || 0), 0),
+    0
+  );
+}

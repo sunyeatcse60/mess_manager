@@ -1,3 +1,5 @@
+import { cloudDict } from './i18n.cloud.js';
+
 export const dict = {
   bn: {
     appTitle: 'ব্যাচেলর মেস ম্যানেজার',
@@ -20,6 +22,7 @@ export const dict = {
     saved: 'সেভ হয়েছে',
     deleted: 'মুছে ফেলা হয়েছে',
     invalidAmount: 'সঠিক টাকার পরিমাণ দিন',
+    invalidDate: 'নির্বাচিত মাসের মধ্যে একটি তারিখ দিন',
     nothing: 'এই মাসে কিছু নেই',
 
     liveRate: 'লাইভ মিল রেট',
@@ -159,6 +162,7 @@ export const dict = {
     saved: 'Saved',
     deleted: 'Deleted',
     invalidAmount: 'Enter a valid amount',
+    invalidDate: 'Choose a date within the selected month',
     nothing: 'Nothing this month',
 
     liveRate: 'Live meal rate',
@@ -278,3 +282,6 @@ export const dict = {
     offlineNote: 'Data is stored on this phone only. Use Share or Backup to pass it on.',
   },
 };
+
+Object.assign(dict.bn, cloudDict.bn);
+Object.assign(dict.en, cloudDict.en);

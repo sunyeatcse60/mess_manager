@@ -91,7 +91,7 @@ export function MemberModal({ open, onClose }) {
 }
 
 export default function Dashboard({ go, openExpense }) {
-  const { data, calc, t, lang, isManager, month, del } = useApp();
+  const { data, calc, t, lang, isManager, month, del, cloudOn } = useApp();
   const toast = useToast();
   const [depOpen, setDepOpen] = useState(false);
   const [memOpen, setMemOpen] = useState(false);
@@ -162,7 +162,7 @@ export default function Dashboard({ go, openExpense }) {
       <SectionHead
         title={t('memberBalances')}
         right={
-          isManager && (
+          isManager && !cloudOn && (
             <button className="link" onClick={() => setMemOpen(true)}>
               <UserPlus size={12} /> {t('addMember')}
             </button>

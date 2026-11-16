@@ -32,7 +32,8 @@ export function ExpenseModal({ kind, open, editing, onClose }) {
 
   const save = () => {
     const a = parseFloat(amount);
-    if (!(a > 0)) return toast(t('invalidAmount'), 'err');
+    if (!Number.isFinite(a) || !(a > 0)) return toast(t('invalidAmount'), 'err');
+    if (!date || !date.startsWith(`${month}-`)) return toast(t('invalidDate'), 'err');
     const item = { payerId, amount: a, title: title.trim() || (kind === 'bua' ? t('navBua') : t('navBazar')), date };
     if (editing) edit(col, editing.id, item);
     else add(col, item);
@@ -60,7 +61,7 @@ export function ExpenseModal({ kind, open, editing, onClose }) {
           <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
         </Field>
         <Field label={t('date')}>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" value={date} min={`${month}-01`} max={`${month}-31`} onChange={(e) => setDate(e.target.value)} />
         </Field>
       </div>
       <Field label={t('title')}>

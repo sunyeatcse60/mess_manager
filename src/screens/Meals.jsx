@@ -91,7 +91,7 @@ export default function Meals() {
                   <Minus size={14} />
                 </button>
                 <span className={v > 0 ? 'on' : ''}>{num(v, lang, 1)}</span>
-                <button disabled={!isManager} onClick={() => setMeal(date, m.id, v + 0.5)} aria-label="plus">
+                <button disabled={!isManager || v >= 20} onClick={() => setMeal(date, m.id, v + 0.5)} aria-label="plus">
                   <Plus size={14} />
                 </button>
               </div>
