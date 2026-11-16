@@ -27,7 +27,7 @@ export const normalizeRepo = (r) =>
 
 export async function checkForUpdate(repoInput) {
   const repo = normalizeRepo(repoInput || DEFAULT_REPO);
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return { status: 'norepo' };
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return { status: 'norepo', repo };
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12000);
@@ -41,9 +41,10 @@ export async function checkForUpdate(repoInput) {
       cache: 'no-store',
     });
     if (res.status === 404) return { status: 'norelease', repo };
-    if (res.status === 403) {
+    if (res.status === 403 || res.status === 429) {
       const retryAfter = res.headers.get('x-ratelimit-reset');
-      return { status: 'error', repo, error: retryAfter ? 'GitHub rate limit reached' : 'HTTP 403' };
+      const after = retryAfter ? new Date(Number(retryAfter) * 1000).toLocaleTimeString() : '';
+      return { status: 'error', repo, error: after ? `GitHub rate limit reached; retry after ${after}` : 'GitHub rate limit reached' };
     }
     if (!res.ok) return { status: 'error', repo, error: `HTTP ${res.status}` };
     const rel = await res.json();
