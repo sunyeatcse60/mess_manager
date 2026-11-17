@@ -26,11 +26,7 @@ export default function GuestHome() {
   const [showJoinPass, setShowJoinPass] = useState(false);
   const [showCreatePass, setShowCreatePass] = useState(false);
   const [showManagerPass, setShowManagerPass] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpOpen, setOtpOpen] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [pendingLoginEmail, setPendingLoginEmail] = useState('');
   const [messName, setMessName] = useState('');
   const [memPass, setMemPass] = useState('');
   const [mgrPass, setMgrPass] = useState('');
@@ -63,12 +59,7 @@ export default function GuestHome() {
       if (pass !== repass) throw new Error('PASS_MISMATCH');
       if (!termsAccepted) throw new Error('TERMS_REQUIRED');
 
-      const r = await signUpNow();
-      if (r.needsConfirm) {
-        setInfo(t('confirmMail'));
-        setView('login');
-        return;
-      }
+      await signUpNow();
       setInfo('Account created. Please log in to continue.');
       setView('login');
     });
@@ -96,12 +87,7 @@ export default function GuestHome() {
       if (memPass.length < 4 || (mgr && mgr.length < 4)) throw new Error('WEAK_PASS');
       if (mgr && mgr === memPass) throw new Error('SAME_PASS');
 
-      const r = await signUpNow();
-      if (r.needsConfirm) {
-        setInfo(t('confirmMail'));
-        setView('login');
-        return;
-      }
+      await signUpNow();
       const finalMgr = mgr || C.genPass();
       const m = await C.createMess(messName.trim(), memPass, finalMgr);
       setSettings({ messId: m.id });
@@ -116,12 +102,7 @@ export default function GuestHome() {
       } else {
         checkAccount();
         if (!termsAccepted) throw new Error('TERMS_REQUIRED');
-        const r = await signUpNow();
-        if (r.needsConfirm) {
-          setInfo(t('confirmMail'));
-          setView('login');
-          return;
-        }
+        await signUpNow();
       }
       const r = await C.joinMess(code, joinPass);
       if (!r.ok) {
@@ -138,23 +119,7 @@ export default function GuestHome() {
       if (!loginValue) throw new Error('EMAIL_OR_USERNAME_REQUIRED');
       if (!C.validatePassword(pass)) throw new Error('E_PASS');
       const resolvedEmail = await C.resolveLoginEmail(loginValue);
-      await C.requestOtpLogin(resolvedEmail, pass);
-      setPendingLoginEmail(resolvedEmail);
-      setOtpSent(true);
-      setOtpOpen(true);
-      setInfo(t('otpSent'));
-    });
-
-  const doVerifyOtp = () =>
-    run(async () => {
-      const loginValue = pendingLoginEmail || (email || username).trim();
-      if (!loginValue) throw new Error('EMAIL_OR_USERNAME_REQUIRED');
-      if (!otpCode.trim()) throw new Error('OTP_REQUIRED');
-      await C.verifyOtpLogin(loginValue, otpCode.trim());
-      setOtpSent(false);
-      setOtpOpen(false);
-      setOtpCode('');
-      setPendingLoginEmail('');
+      await C.signIn(resolvedEmail, pass);
       toast(t('loginSuccess'));
       setView('create');
     });
@@ -162,8 +127,8 @@ export default function GuestHome() {
   const PasswordField = ({ value, onChange, placeholder, show, setShow, icon = null }) => (
     <div className="modern-input password-wrap">
       <span className="modern-icon">{icon || <Lock size={16} />}</span>
-      <input type={show ? 'text' : 'password'} value={value} onChange={onChange} placeholder={placeholder} autoComplete="new-password" />
-      <button type="button" className="pass-toggle" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'}>
+      <input type={show ? 'text' : 'password'} value={value} onChange={onChange} onBlur={() => setShow(false)} placeholder={placeholder} autoComplete="new-password" />
+      <button type="button" className="pass-toggle" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide password' : 'Show password'}>
         {show ? <EyeOff size={16} /> : <Eye size={16} />}
       </button>
     </div>
@@ -354,10 +319,14 @@ export default function GuestHome() {
             />
           </label>
 
-          <label className="modern-input">
-            <span className="modern-icon"><Lock size={16} /></span>
-            <input type="password" placeholder={t('password')} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="current-password" />
-          </label>
+          <PasswordField
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            placeholder={t('password')}
+            show={showPass}
+            setShow={setShowPass}
+            icon={<Lock size={16} />}
+          />
 
           <div className="modern-meta">
             <label className="remember-me">
@@ -377,16 +346,6 @@ export default function GuestHome() {
             Need an account? Sign up
           </button>
         </div>
-
-        <Modal open={otpOpen} title="OTP verification" onClose={() => setOtpOpen(false)}>
-          <p className="muted small">{info || 'A 6-digit OTP has been sent to your email.'}</p>
-          <Field label="OTP code">
-            <input type="text" inputMode="numeric" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" />
-          </Field>
-          <button className="btn btn-primary full" disabled={busy || otpCode.length !== 6} onClick={doVerifyOtp}>
-            {busy ? t('loading') : 'Verify OTP'}
-          </button>
-        </Modal>
       </div>
     );
   }

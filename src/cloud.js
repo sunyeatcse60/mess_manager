@@ -42,7 +42,7 @@ export async function signUp({ email, password, fullName, username }) {
     options: { data: { full_name: fullName, username: user } },
   });
   if (error) throw error;
-  return { needsConfirm: !data.session };
+  return { needsConfirm: false, session: data.session };
 }
 export const signIn = async (email, password) => ok(await supabase.auth.signInWithPassword({ email, password }));
 export async function requestOtpLogin(identifier, password) {
